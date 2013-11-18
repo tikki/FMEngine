@@ -10,13 +10,9 @@
 #import "NSString+FMEngine.h"
 #import "FMCallback.h"
 
-@interface FMEngineURLConnection : NSURLConnection {
-	NSString *_id;
-	NSMutableData *_receivedData;
-	FMCallback *callback;
-}
+@interface FMEngineURLConnection : NSURLConnection;
 
-@property (nonatomic, retain) FMCallback *callback;
+@property (nonatomic, strong) FMCallback *callback;
 
 - (id)initWithRequest:(NSURLRequest *)request delegate:(id)delegate;
 - (id)initWithRequest:(NSURLRequest *)request;

@@ -28,157 +28,110 @@ static NSInteger sortAlpha(NSString *n1, NSString *n2, void *context) {
 	return [unencryptedToken md5sum];
 }
 
-- (void)performMethod:(NSString *)method withTarget:(id)target withParameters:(NSDictionary *)params andAction:(SEL)callback useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod {
-	NSString *dataSig;
+- (NSURLRequest *)requestForMethod:(NSString *)method withParameters:(NSDictionary *)params useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod {
 	NSMutableURLRequest *request;
 	NSMutableDictionary *tempDict = [[NSMutableDictionary alloc] initWithDictionary:params];
 	
+    [tempDict setObject:self.apiKey forKey:@"api_key"];
 	[tempDict setObject:method forKey:@"method"];
-	if(useSig == TRUE) {
-		dataSig = [self generateSignatureFromDictionary:tempDict];
-		
+	if (useSig) {
+		NSString *dataSig = [self generateSignatureFromDictionary:tempDict];
 		[tempDict setObject:dataSig forKey:@"api_sig"];
 	}
-	
-	#ifdef _USE_JSON_
+    
+#ifdef _USE_JSON_
 	if(![httpMethod isPOST]) {
 		[tempDict setObject:@"json" forKey:@"format"];
 	}
-
-	#endif
-	
+#endif
+    
 	params = [NSDictionary dictionaryWithDictionary:tempDict];
-	[tempDict release];
-
-	if(![httpMethod isPOST]) {
+    
+    if(![httpMethod isPOST]) {
 		NSURL *dataURL = [self generateURLFromDictionary:params];
 		request = [NSURLRequest requestWithURL:dataURL];
 	} else {
-		#ifdef _USE_JSON_
-		request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:[_LASTFM_BASEURL_ stringByAppendingString:@"?format=json"]]];
-		#else 
-		request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:_LASTFM_BASEURL_]];
-		#endif
+#ifdef _USE_JSON_
+		request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:[_LASTFM_BASEURL_ stringByAppendingString:@"?format=json"]]];
+#else
+		request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:_LASTFM_BASEURL_]];
+#endif
 		[request setHTTPMethod:httpMethod];
 		[request setHTTPBody:[[self generatePOSTBodyFromDictionary:params] dataUsingEncoding:NSUTF8StringEncoding]];
 	}
-	
+    
+    return request;
+}
+
+- (void)performMethod:(NSString *)method withTarget:(id)target withParameters:(NSDictionary *)params andAction:(SEL)callback useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod {
+    NSURLRequest *request = [self requestForMethod:method withParameters:params useSignature:useSig httpMethod:httpMethod];
+
 	FMEngineURLConnection *connection = [[FMEngineURLConnection alloc] initWithRequest:request];
 	NSString *connectionId = [connection identifier];
 	connection.callback = [FMCallback callbackWithTarget:target action:callback userInfo:nil object:connectionId];
 	
 	if(connection) {
 		[connections setObject:connection forKey:connectionId];
-		[connection release];
 	}
 
 }
 
-- (NSData *)dataForMethod:(NSString *)method withParameters:(NSDictionary *)params useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod error:(NSError *)err {
-	NSString *dataSig;
-	NSMutableURLRequest *request;
-	NSMutableDictionary *tempDict = [[NSMutableDictionary alloc] initWithDictionary:params];
-	
-	[tempDict setObject:method forKey:@"method"];
-	if(useSig == TRUE) {
-		dataSig = [self generateSignatureFromDictionary:tempDict];
-		
-		[tempDict setObject:dataSig forKey:@"api_sig"];
-	}
-	
-	#ifdef _USE_JSON_
-	if(![httpMethod isPOST]) {
-		[tempDict setObject:@"json" forKey:@"format"];
-	}
-	#endif
-	
-	[tempDict setObject:method forKey:@"method"];
-	params = [NSDictionary dictionaryWithDictionary:tempDict];
-	[tempDict release];
-	
-	if(![httpMethod isPOST]) {
-		NSURL *dataURL = [self generateURLFromDictionary:params];
-		request = [NSURLRequest requestWithURL:dataURL];
-	} else {
-		#ifdef _USE_JSON_
-		request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:[_LASTFM_BASEURL_ stringByAppendingString:@"?format=json"]]];
-		#else 
-		request = [[NSMutableURLRequest alloc] initWithURL:[NSURL URLWithString:_LASTFM_BASEURL_]];
-		#endif
-		
-		[request setHTTPMethod:httpMethod];
-		[request setHTTPBody:[[self generatePOSTBodyFromDictionary:params] dataUsingEncoding:NSUTF8StringEncoding]];
-	}
-	
-	NSData *returnData = [FMEngineURLConnection sendSynchronousRequest:request returningResponse:nil error:&err];
+- (NSData *)dataForMethod:(NSString *)method withParameters:(NSDictionary *)params useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod error:(NSError **)err {
+    NSURLRequest *request = [self requestForMethod:method withParameters:params useSignature:useSig httpMethod:httpMethod];
+	NSData *returnData = [FMEngineURLConnection sendSynchronousRequest:request returningResponse:nil error:err];
 	return returnData;
 }
 
+- (NSString *)urlEncodeValue:(NSString *)str {
+	NSString *result = (NSString *)CFBridgingRelease(CFURLCreateStringByAddingPercentEscapes(kCFAllocatorDefault, (CFStringRef)str, NULL, CFSTR("!*'();:@&=+$,/?%#[]"), kCFStringEncodingUTF8));
+	return result;
+}
+
+- (NSString *)urlEncodedStringWithParameters:(NSDictionary *)params {
+    NSMutableArray *encodedParams = [NSMutableArray arrayWithCapacity:params.count];
+    Class stringClass = NSString.class;
+	for (__strong NSString *key in params) {
+		id val = [params objectForKey:key];
+		if ([val isKindOfClass:stringClass]) {
+			val = [self urlEncodeValue:val];
+		}
+		if ([key isKindOfClass:stringClass]) {
+			key = [self urlEncodeValue:key];
+		}
+        [encodedParams addObject:[NSString stringWithFormat:@"%@=%@", key, val]];
+	}
+    [encodedParams sortUsingFunction:sortAlpha context:(__bridge void *)self];
+    return [encodedParams componentsJoinedByString:@"&"];
+}
+
 - (NSString *)generatePOSTBodyFromDictionary:(NSDictionary *)dict {
-	NSMutableString *rawBody = [[NSMutableString alloc] init];
-	NSMutableArray *aMutableArray = [[NSMutableArray alloc] initWithArray:[dict allKeys]];
-	[aMutableArray sortUsingFunction:sortAlpha context:self];
-	
-	for(NSString *key in aMutableArray) {
-		[rawBody appendString:[NSString stringWithFormat:@"&%@=%@", key, [dict objectForKey:key]]];
-	}	
-	
-	
-	NSString *body = [NSString stringWithString:rawBody];
-	[rawBody release];
-	[aMutableArray release];
-	
-	return body;
+    return [self urlEncodedStringWithParameters:dict];
 }
 
 - (NSURL *)generateURLFromDictionary:(NSDictionary *)dict {
-	NSMutableArray *aMutableArray = [[NSMutableArray alloc] initWithArray:[dict allKeys]];
-	NSMutableString *rawURL = [[NSMutableString alloc] init];
-	[aMutableArray sortUsingFunction:sortAlpha context:self];
-	[rawURL appendString:_LASTFM_BASEURL_];
-	
-	int i;
-	
-	for(i = 0; i < [aMutableArray count]; i++) {
-		NSString *key = [aMutableArray objectAtIndex:i];
-		if(i == 0) {
-			[rawURL appendString:[NSString stringWithFormat:@"?%@=%@", key, [dict objectForKey:key]]];
-		} else {
-			[rawURL appendString:[NSString stringWithFormat:@"&%@=%@", key, [dict objectForKey:key]]];
-		}
-	}
-	
-	NSString *encodedURL = [(NSString *)rawURL stringByReplacingOccurrencesOfString:@" " withString:@"%20"];
+	NSString *encodedURL = [NSString stringWithFormat:@"%@?%@", _LASTFM_BASEURL_, [self urlEncodedStringWithParameters:dict]];
 	NSURL *url = [NSURL URLWithString:encodedURL];
-	[rawURL release];
-	[aMutableArray release];
-	
-	return url;
+    return url;
 }
 
 - (NSString *)generateSignatureFromDictionary:(NSDictionary *)dict {
 	NSMutableArray *aMutableArray = [[NSMutableArray alloc] initWithArray:[dict allKeys]];
 	NSMutableString *rawSignature = [[NSMutableString alloc] init];
-	[aMutableArray sortUsingFunction:sortAlpha context:self];
+	[aMutableArray sortUsingFunction:sortAlpha context:(__bridge void *)self];
 	
 	for(NSString *key in aMutableArray) {
 		[rawSignature appendString:[NSString stringWithFormat:@"%@%@", key, [dict objectForKey:key]]];
 	}
 	
-	[rawSignature appendString:_LASTFM_SECRETK_];
+	[rawSignature appendString:self.apiSecret];
 	
 	NSString *signature = [rawSignature md5sum];
-	[rawSignature release];
-	[aMutableArray release];
 	
 	return signature;
 }
 
 - (void)dealloc {
-
 	[[connections allValues] makeObjectsPerformSelector:@selector(cancel)];
-    [connections release];
-	[super dealloc];
 }
 
 @end

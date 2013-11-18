@@ -12,8 +12,10 @@
 
 - (void)awakeFromNib {
 	fmEngine = [[FMEngine alloc] init];
+	fmEngine.apiKey = @"yourapikey";
+	fmEngine.apiSecret = @"yourapisecret";
 	NSString *authToken = [fmEngine generateAuthTokenFromUsername:@"yourusername" password:@"yourpassword"];
-	NSDictionary *urlDict = [NSDictionary dictionaryWithObjectsAndKeys:@"yourusername", @"username", authToken, @"authToken", _LASTFM_API_KEY_, @"api_key", nil, nil];
+	NSDictionary *urlDict = @[@"username": @"yourusername", @"authToken": authToken];
 	[fmEngine performMethod:@"auth.getMobileSession" withTarget:self withParameters:urlDict andAction:@selector(loginCallback:data:) useSignature:YES httpMethod:POST_TYPE];	
 }
 

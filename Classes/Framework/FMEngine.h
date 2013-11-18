@@ -9,9 +9,7 @@
 #import <Foundation/Foundation.h>
 #import "NSString+FMEngine.h"
 
-#define _LASTFM_API_KEY_ @"YOUR_API_KEY"
-#define _LASTFM_SECRETK_ @"YOUR_SECRET_KEY"
-#define _LASTFM_BASEURL_ @"http://ws.audioscrobbler.com/2.0/"
+#define _LASTFM_BASEURL_ @"https://ws.audioscrobbler.com/2.0/"
 
 // Comment the next line to use XML
 #define _USE_JSON_ 1
@@ -26,6 +24,8 @@
 	NSMutableDictionary *connections;
 }
 
+@property (nonatomic, strong) NSString *apiKey;
+@property (nonatomic, strong) NSString *apiSecret;
 
 - (NSString *)generateAuthTokenFromUsername:(NSString *)username password:(NSString *)password;
 - (NSString *)generateSignatureFromDictionary:(NSDictionary *)dict;
@@ -33,7 +33,6 @@
 - (NSURL *)generateURLFromDictionary:(NSDictionary *)dict;
 
 - (void)performMethod:(NSString *)method withTarget:(id)target withParameters:(NSDictionary *)params andAction:(SEL)callback useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod;
-- (NSData *)dataForMethod:(NSString *)method withParameters:(NSDictionary *)params useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod error:(NSError *)err;
-
+- (NSData *)dataForMethod:(NSString *)method withParameters:(NSDictionary *)params useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod error:(NSError **)err;
 
 @end
