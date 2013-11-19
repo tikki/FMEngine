@@ -17,8 +17,6 @@
 #define POST_TYPE	@"POST"
 #define GET_TYPE	@"GET"
 
-@class FMEngine;
-
 @interface FMEngine : NSObject {
 	NSMutableData *receivedData;
 	NSMutableDictionary *connections;
@@ -27,7 +25,8 @@
 @property (nonatomic, strong) NSString *apiKey;
 @property (nonatomic, strong) NSString *apiSecret;
 
-- (NSString *)generateAuthTokenFromUsername:(NSString *)username password:(NSString *)password;
++ (FMEngine *)engineWithApiKey:(NSString *)key apiSecret:(NSString *)secret;
+
 - (NSString *)generateSignatureFromDictionary:(NSDictionary *)dict;
 - (NSString *)generatePOSTBodyFromDictionary:(NSDictionary *)dict;
 - (NSURL *)generateURLFromDictionary:(NSDictionary *)dict;

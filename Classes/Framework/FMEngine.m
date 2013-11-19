@@ -23,9 +23,11 @@ static NSInteger sortAlpha(NSString *n1, NSString *n2, void *context) {
 	return self;	
 }
 
-- (NSString *)generateAuthTokenFromUsername:(NSString *)username password:(NSString *)password {
-	NSString *unencryptedToken = [NSString stringWithFormat:@"%@%@", username, [password md5sum]];
-	return [unencryptedToken md5sum];
++ (FMEngine *)engineWithApiKey:(NSString *)key apiSecret:(NSString *)secret {
+    FMEngine *engine = [[FMEngine alloc] init];
+    engine.apiKey = key;
+    engine.apiSecret = secret;
+    return engine;
 }
 
 - (NSURLRequest *)requestForMethod:(NSString *)method withParameters:(NSDictionary *)params useSignature:(BOOL)useSig httpMethod:(NSString *)httpMethod {
@@ -90,17 +92,13 @@ static NSInteger sortAlpha(NSString *n1, NSString *n2, void *context) {
 - (NSString *)urlEncodedStringWithParameters:(NSDictionary *)params {
     NSMutableArray *encodedParams = [NSMutableArray arrayWithCapacity:params.count];
     Class stringClass = NSString.class;
-	for (__strong NSString *key in params) {
+	for (NSString *key in params) {
 		id val = [params objectForKey:key];
 		if ([val isKindOfClass:stringClass]) {
 			val = [self urlEncodeValue:val];
 		}
-		if ([key isKindOfClass:stringClass]) {
-			key = [self urlEncodeValue:key];
-		}
         [encodedParams addObject:[NSString stringWithFormat:@"%@=%@", key, val]];
 	}
-    [encodedParams sortUsingFunction:sortAlpha context:(__bridge void *)self];
     return [encodedParams componentsJoinedByString:@"&"];
 }
 
