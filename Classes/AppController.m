@@ -7,19 +7,29 @@
 //
 
 #import "AppController.h"
+#import "FMEngine.h"
 
-@implementation AppController
-
-- (void)awakeFromNib {
-	fmEngine = [[FMEngine alloc] init];
-	fmEngine.apiKey = @"yourapikey";
-	fmEngine.apiSecret = @"yourapisecret";
-	NSString *authToken = [fmEngine generateAuthTokenFromUsername:@"yourusername" password:@"yourpassword"];
-	NSDictionary *urlDict = @[@"username": @"yourusername", @"authToken": authToken];
-	[fmEngine performMethod:@"auth.getMobileSession" withTarget:self withParameters:urlDict andAction:@selector(loginCallback:data:) useSignature:YES httpMethod:POST_TYPE];	
+@implementation AppController {
+	FMEngine *fmEngine;
+	FMEngineSession *fmSession;
 }
 
-- (void)loginCallback:(NSString *)identifier data:(id)data {
+- (void)awakeFromNib {
+	fmEngine = [FMEngine engineWithApiKey:@"yourapikey" apiSecret:@"yourapisecret"];
+	fmSession = [fmEngine sessionWithTarget:self action:@selector(sessionEstablished:) username:@"yourusername" password:@"yourpassword"];
+}
+
+- (void)sessionEstablished:(FMEngineSession *)session {
+	NSMutableArray *list = [NSMutableArray array];
+	for (int i = 0; i < 15; ++i) {
+		FMEngineTrackParams *params = [FMEngineTrackParams paramsWithArtist:@"Test Artist" track:@"Test Track"];
+		params.timestamp = [NSNumber numberWithUnsignedInt:[[NSDate date] timeIntervalSince1970] - i * 120];
+		[list addObject:params];
+	}
+	[session scrobbleManyWithTarget:self action:@selector(logCallback:data:) tracks:list];
+}
+
+- (void)logCallback:(NSString *)identifier data:(id)data {
 	// data is either NSData or NSError
 	NSLog(@"Got Data (%@): %@", identifier, data);
 }
